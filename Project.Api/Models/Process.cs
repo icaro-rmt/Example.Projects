@@ -22,10 +22,12 @@ namespace Project.Api.Models
     {
         public int Id { get; set; }
     }
+
     public class HistoryProcess : ProcessFields, IAuditHistory
     {
         public long HistoryId { get; set; }
         public int ProcessId { get; set; }
+        public DateTime HistoryCreationDate { get => DateTime.Now ; set ; } 
     }
 }
 

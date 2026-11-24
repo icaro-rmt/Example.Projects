@@ -21,6 +21,7 @@
     {
         public long ValidationRequestId { get; set; }
         public long HistoryId { get ; set; }
+        public DateTime HistoryCreationDate { get ; set ; }
     }
    
 }

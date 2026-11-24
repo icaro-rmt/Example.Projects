@@ -22,5 +22,6 @@
     public interface IAuditHistory
     {
         public long HistoryId{ get; set; }
+        public DateTime HistoryCreationDate { get; set; }
     }
 }

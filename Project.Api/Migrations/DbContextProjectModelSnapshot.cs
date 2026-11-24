@@ -63,6 +63,9 @@ namespace Project.Api.Migrations
                     b.Property<int>("CreationUserId")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("HistoryCreationDate")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("ProcessId")
                         .HasColumnType("integer");
 
@@ -183,6 +186,9 @@ namespace Project.Api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<DateTime>("HistoryCreationDate")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime>("UpdateDate")
                         .HasColumnType("timestamp with time zone");
 
@@ -196,7 +202,7 @@ namespace Project.Api.Migrations
 
                     b.HasIndex("ValidationRequestId", "HistoryId");
 
-                    b.ToTable("ValidationRequests_History");
+                    b.ToTable("ValidationRequest_History", (string)null);
                 });
 #pragma warning restore 612, 618
         }
