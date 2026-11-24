@@ -1,0 +1,64 @@
+﻿@baseUrl = http://localhost:5080
+
+### 200 OK with a caller-supplied correlation ID
+GET {{baseUrl}}/api/examples/1
+X-Correlation-Id: demo-correlation-123
+
+### 200 OK with pagination metadata and a generated correlation ID
+GET {{baseUrl}}/api/examples/page?page=2&pageSize=2
+
+### 404 Not Found with a business error
+GET {{baseUrl}}/api/examples/999
+
+### 422 Unprocessable Entity with two field errors
+POST {{baseUrl}}/api/examples/validate
+Content-Type: application/json
+
+{"name":"","quantity":0}
+
+### 200 OK with a validated request
+POST {{baseUrl}}/api/examples/validate
+Content-Type: application/json
+
+{"name":"Notebook","quantity":2}
+
+### 500 Internal Server Error with a technical error
+GET {{baseUrl}}/api/examples/unexpected-error
+X-Correlation-Id: demo-error-123
+
+### Create an auditable process
+# @name createProcess
+POST {{baseUrl}}/api/processes
+Content-Type: application/json
+
+{
+  "processTypeId": 1,
+  "processStatusId": 1,
+  "clientNif": "123456789",
+  "clientName": "Example Client",
+  "clientSector": "Retail",
+  "clientCountryCode": "PT",
+  "comments": "Created",
+  "userId": 1
+}
+
+### Update the process created above
+PUT {{baseUrl}}/api/processes/{{createProcess.response.body.$.data.id}}
+Content-Type: application/json
+
+{
+  "processTypeId": 1,
+  "processStatusId": 2,
+  "clientNif": "123456789",
+  "clientName": "Example Client",
+  "clientSector": "Retail",
+  "clientCountryCode": "PT",
+  "comments": "Updated",
+  "userId": 2
+}
+
+### Delete the process
+DELETE {{baseUrl}}/api/processes/{{createProcess.response.body.$.data.id}}
+
+### Verify the Insert, Update, and Delete snapshots
+GET {{baseUrl}}/api/processes/{{createProcess.response.body.$.data.id}}/history
