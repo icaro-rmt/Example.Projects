@@ -8,7 +8,7 @@ namespace Project.Api;
 
 [ApiController]
 [Route("api/processes")]
-public sealed class ProcessesController(DbContextProject db) : ControllerBase
+public sealed class ProcessController(DbContextProject db) : ControllerBase
 {
     [HttpGet("{id:int}")]
     public async Task<ActionResult<ApiResponse<Process>>> Get(int id, CancellationToken cancellationToken)
@@ -65,27 +65,27 @@ public sealed class ProcessesController(DbContextProject db) : ControllerBase
     }
 
     [HttpGet("{id:int}/history")]
-    public async Task<ActionResult<ApiResponse<HistoryProcess[]>>> GetHistory(
+    public async Task<ActionResult<ApiResponse<Process[]>>> GetHistory(
         int id, CancellationToken cancellationToken)
     {
         var history = await db.Set<Dictionary<string, object>>("Process_History")
-            .Where(entry => EF.Property<int>(entry, "ProcessId") == id)
+            .Where(entry => EF.Property<int>(entry, "Id") == id)
             .OrderBy(entry => EF.Property<long>(entry, "HistoryId"))
-            .Select(entry => new HistoryProcess(
-                EF.Property<int>(entry, "ProcessId"),
-                EF.Property<long>(entry, "HistoryId"),
-                EF.Property<DateTime>(entry, "HistoryCreationDate"),
-                EF.Property<int>(entry, "ProcessTypeId"),
-                EF.Property<int>(entry, "ProcessStatusId"),
-                EF.Property<string>(entry, "ClientNIF"),
-                EF.Property<string>(entry, "ClientName"),
-                EF.Property<string>(entry, "ClientSector"),
-                EF.Property<string>(entry, "ClientCountryCode"),
-                EF.Property<DateTime>(entry, "CreationDate"),
-                EF.Property<DateTime>(entry, "UpdateDate"),
-                EF.Property<int>(entry, "CreationUserId"),
-                EF.Property<int>(entry, "UpdateUser"),
-                EF.Property<string>(entry, "Comments")))
+            .Select(entry => new Process
+            {
+                Id = EF.Property<int>(entry, nameof(Process.Id)),
+                ProcessTypeId = EF.Property<int>(entry, nameof(Process.ProcessTypeId)),
+                ProcessStatusId = EF.Property<int>(entry, nameof(Process.ProcessStatusId)),
+                ClientNIF = EF.Property<string>(entry, nameof(Process.ClientNIF)),
+                ClientName = EF.Property<string>(entry, nameof(Process.ClientName)),
+                ClientSector = EF.Property<string>(entry, nameof(Process.ClientSector)),
+                ClientCountryCode = EF.Property<string>(entry, nameof(Process.ClientCountryCode)),
+                CreationDate = EF.Property<DateTime>(entry, nameof(Process.CreationDate)),
+                UpdateDate = EF.Property<DateTime>(entry, nameof(Process.UpdateDate)),
+                CreationUserId = EF.Property<int>(entry, nameof(Process.CreationUserId)),
+                UpdateUser = EF.Property<int>(entry, nameof(Process.UpdateUser)),
+                Comments = EF.Property<string>(entry, nameof(Process.Comments))
+            })
             .ToArrayAsync(cancellationToken);
 
         return Ok(ApiResponseFactory.Success(history));
@@ -117,19 +117,3 @@ public sealed record ProcessRequest(
     string ClientCountryCode,
     string Comments,
     int UserId);
-
-public sealed record HistoryProcess(
-    int ProcessId,
-    long HistoryId,
-    DateTime HistoryCreationDate,
-    int ProcessTypeId,
-    int ProcessStatusId,
-    string ClientNIF,
-    string ClientName,
-    string ClientSector,
-    string ClientCountryCode,
-    DateTime CreationDate,
-    DateTime UpdateDate,
-    int CreationUserId,
-    int UpdateUser,
-    string Comments);

@@ -65,21 +65,21 @@ public sealed class ValidationRequestsController(DbContextProject db) : Controll
     }
 
     [HttpGet("{id:int}/history")]
-    public async Task<ActionResult<ApiResponse<ValidationRequestHistory[]>>> GetHistory(
+    public async Task<ActionResult<ApiResponse<ValidationRequest[]>>> GetHistory(
         int id, CancellationToken cancellationToken)
     {
         var history = await db.Set<Dictionary<string, object>>("ValidationRequest_History")
-            .Where(entry => EF.Property<long>(entry, "ValidationRequestId") == id)
+            .Where(entry => EF.Property<long>(entry, "Id") == id)
             .OrderBy(entry => EF.Property<long>(entry, "HistoryId"))
-            .Select(entry => new ValidationRequestHistory(
-                EF.Property<long>(entry, "ValidationRequestId"),
-                EF.Property<long>(entry, "HistoryId"),
-                EF.Property<DateTime>(entry, "HistoryCreationDate"),
-                EF.Property<string>(entry, "DocumentId"),
-                EF.Property<DateTime>(entry, "CreationDate"),
-                EF.Property<DateTime>(entry, "UpdateDate"),
-                EF.Property<int>(entry, "CreationUserId"),
-                EF.Property<int>(entry, "UpdateUser")))
+            .Select(entry => new ValidationRequest
+            {
+                Id = EF.Property<long>(entry, nameof(ValidationRequest.Id)),
+                DocumentId = EF.Property<string>(entry, nameof(ValidationRequest.DocumentId)),
+                CreationDate = EF.Property<DateTime>(entry, nameof(ValidationRequest.CreationDate)),
+                UpdateDate = EF.Property<DateTime>(entry, nameof(ValidationRequest.UpdateDate)),
+                CreationUserId = EF.Property<int>(entry, nameof(ValidationRequest.CreationUserId)),
+                UpdateUser = EF.Property<int>(entry, nameof(ValidationRequest.UpdateUser))
+            })
             .ToArrayAsync(cancellationToken);
 
         return Ok(ApiResponseFactory.Success(history));
@@ -99,13 +99,3 @@ public sealed class ValidationRequestsController(DbContextProject db) : Controll
 public sealed record ValidationRequestRequest(
     string DocumentId,
     int UserId);
-
-public sealed record ValidationRequestHistory(
-    long ValidationRequestId,
-    long HistoryId,
-    DateTime HistoryCreationDate,
-    string DocumentId,
-    DateTime CreationDate,
-    DateTime UpdateDate,
-    int CreationUserId,
-    int UpdateUser);

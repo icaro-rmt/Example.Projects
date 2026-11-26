@@ -1,4 +1,4 @@
-using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Project.Api.Models;
@@ -8,7 +8,6 @@ namespace Project.Api.DbContexts;
 public class DbContextProject(DbContextOptions<DbContextProject> options) : DbContext(options)
 {
     internal static string HistoryTableNameBuilder(string entityName) => entityName + "_History";
-    internal static string ParentIdColumnNameBuilder(string entityName) => entityName + "Id";
     public DbSet<Process> Processes => Set<Process>();
     public DbSet<ValidationRequest> ValidationRequests => Set<ValidationRequest>();
 
@@ -28,28 +27,92 @@ public class DbContextProject(DbContextOptions<DbContextProject> options) : DbCo
             var tableName = HistoryTableNameBuilder(entityName);
             var sourceTable = StoreObjectIdentifier.Table(source.GetTableName()!, source.GetSchema());
             var key = source.FindPrimaryKey()!.Properties.Single();
-            var parentId = ParentIdColumnNameBuilder(entityName);
+            var parentId = key.GetColumnName(sourceTable)!;
 
             var history = modelBuilder.SharedTypeEntity<Dictionary<string, object>>(tableName)
-                .HasNoKey()
                 .ToTable(tableName, source.GetSchema());
 
             foreach (var property in source.GetProperties())
             {
-                var column = property == key ? parentId : property.GetColumnName(sourceTable);
+                var column = property.GetColumnName(sourceTable);
                 if (column is null)
                     continue;
 
                 history.IndexerProperty(property.ClrType, column).IsRequired(!property.IsNullable);
             }
 
-            var historyId = history.IndexerProperty<long>("HistoryId").UseIdentityByDefaultColumn();
-            // Keep the existing physical column name for Process history.
-            if (source.ClrType == typeof(Process))
-                historyId.HasColumnName("HistoryProcessId");
-
-            history.IndexerProperty<DateTime>("HistoryCreationDate").HasDefaultValueSql("statement_timestamp()");
-            history.HasIndex(parentId, "HistoryCreationDate");
+            history.IndexerProperty<long>("HistoryId").UseIdentityByDefaultColumn();
+            history.HasKey("HistoryId");
+            history.IndexerProperty<DateTime>("HistoryCreationDate");
+            history.HasIndex(parentId, "HistoryId");
         }
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        var snapshots = new List<EntityEntry>();
+        try
+        {
+            StageHistory(snapshots);
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+        catch
+        {
+            DetachHistory(snapshots);
+            throw;
+        }
+    }
+
+    public override async Task<int> SaveChangesAsync(
+        bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var snapshots = new List<EntityEntry>();
+        try
+        {
+            StageHistory(snapshots);
+            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+        catch
+        {
+            DetachHistory(snapshots);
+            throw;
+        }
+    }
+
+    private void StageHistory(List<EntityEntry> snapshots)
+    {
+        var changes = ChangeTracker.Entries<IAuditing>()
+            .Where(entry => entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
+            .ToArray();
+        var stagedAt = DateTime.UtcNow;
+
+        foreach (var change in changes)
+        {
+            var source = change.Metadata;
+            var sourceTable = StoreObjectIdentifier.Table(source.GetTableName()!, source.GetSchema());
+            var key = source.FindPrimaryKey()!.Properties.Single();
+            if (change.Property(key.Name).IsTemporary)
+                throw new InvalidOperationException($"Audit history requires a final key for {source.ClrType.Name}.");
+
+            var values = change.State == EntityState.Deleted ? change.OriginalValues : change.CurrentValues;
+            var snapshot = new Dictionary<string, object>
+            {
+                ["HistoryCreationDate"] = stagedAt
+            };
+            foreach (var property in values.Properties)
+            {
+                if (property.GetColumnName(sourceTable) is { } column)
+                    snapshot.Add(column, values[property]!);
+            }
+
+            snapshots.Add(Set<Dictionary<string, object>>(HistoryTableNameBuilder(source.ClrType.Name)).Add(snapshot));
+        }
+    }
+
+    private static void DetachHistory(List<EntityEntry> snapshots)
+    {
+        foreach (var snapshot in snapshots)
+            snapshot.State = EntityState.Detached;
     }
 }
