@@ -28,15 +28,8 @@ namespace Project.Api.Migrations
             modelBuilder.HasSequence("ValidationRequestId")
                 .IncrementsBy(10);
 
-            modelBuilder.Entity("Project.Api.Models.HistoryProcess", b =>
+            modelBuilder.Entity("Process_History", b =>
                 {
-                    b.Property<long>("HistoryId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("HistoryProcessId");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryId"));
-
                     b.Property<string>("ClientCountryCode")
                         .IsRequired()
                         .HasColumnType("text");
@@ -64,7 +57,16 @@ namespace Project.Api.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("HistoryCreationDate")
-                        .HasColumnType("timestamp with time zone");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("statement_timestamp()");
+
+                    b.Property<long>("HistoryId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("HistoryProcessId");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryId"));
 
                     b.Property<int>("ProcessId")
                         .HasColumnType("integer");
@@ -81,9 +83,7 @@ namespace Project.Api.Migrations
                     b.Property<int>("UpdateUser")
                         .HasColumnType("integer");
 
-                    b.HasKey("HistoryId");
-
-                    b.HasIndex("ProcessId", "HistoryId");
+                    b.HasIndex("ProcessId", "HistoryCreationDate");
 
                     b.ToTable("Process_History", (string)null);
                 });
@@ -168,14 +168,8 @@ namespace Project.Api.Migrations
                     b.ToTable("ValidationRequests");
                 });
 
-            modelBuilder.Entity("Project.Api.Models.ValidationRequestHistory", b =>
+            modelBuilder.Entity("ValidationRequest_History", b =>
                 {
-                    b.Property<long>("HistoryId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryId"));
-
                     b.Property<DateTime>("CreationDate")
                         .HasColumnType("timestamp with time zone");
 
@@ -187,7 +181,15 @@ namespace Project.Api.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("HistoryCreationDate")
-                        .HasColumnType("timestamp with time zone");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("statement_timestamp()");
+
+                    b.Property<long>("HistoryId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryId"));
 
                     b.Property<DateTime>("UpdateDate")
                         .HasColumnType("timestamp with time zone");
@@ -198,9 +200,7 @@ namespace Project.Api.Migrations
                     b.Property<long>("ValidationRequestId")
                         .HasColumnType("bigint");
 
-                    b.HasKey("HistoryId");
-
-                    b.HasIndex("ValidationRequestId", "HistoryId");
+                    b.HasIndex("ValidationRequestId", "HistoryCreationDate");
 
                     b.ToTable("ValidationRequest_History", (string)null);
                 });

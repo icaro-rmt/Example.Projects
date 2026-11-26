@@ -68,9 +68,24 @@ public sealed class ProcessesController(DbContextProject db) : ControllerBase
     public async Task<ActionResult<ApiResponse<HistoryProcess[]>>> GetHistory(
         int id, CancellationToken cancellationToken)
     {
-        var history = await db.Processes_History.AsNoTracking()
-            .Where(entry => entry.ProcessId == id)
-            .OrderBy(entry => entry.HistoryId)
+        var history = await db.Set<Dictionary<string, object>>("Process_History")
+            .Where(entry => EF.Property<int>(entry, "ProcessId") == id)
+            .OrderBy(entry => EF.Property<long>(entry, "HistoryId"))
+            .Select(entry => new HistoryProcess(
+                EF.Property<int>(entry, "ProcessId"),
+                EF.Property<long>(entry, "HistoryId"),
+                EF.Property<DateTime>(entry, "HistoryCreationDate"),
+                EF.Property<int>(entry, "ProcessTypeId"),
+                EF.Property<int>(entry, "ProcessStatusId"),
+                EF.Property<string>(entry, "ClientNIF"),
+                EF.Property<string>(entry, "ClientName"),
+                EF.Property<string>(entry, "ClientSector"),
+                EF.Property<string>(entry, "ClientCountryCode"),
+                EF.Property<DateTime>(entry, "CreationDate"),
+                EF.Property<DateTime>(entry, "UpdateDate"),
+                EF.Property<int>(entry, "CreationUserId"),
+                EF.Property<int>(entry, "UpdateUser"),
+                EF.Property<string>(entry, "Comments")))
             .ToArrayAsync(cancellationToken);
 
         return Ok(ApiResponseFactory.Success(history));
@@ -102,3 +117,19 @@ public sealed record ProcessRequest(
     string ClientCountryCode,
     string Comments,
     int UserId);
+
+public sealed record HistoryProcess(
+    int ProcessId,
+    long HistoryId,
+    DateTime HistoryCreationDate,
+    int ProcessTypeId,
+    int ProcessStatusId,
+    string ClientNIF,
+    string ClientName,
+    string ClientSector,
+    string ClientCountryCode,
+    DateTime CreationDate,
+    DateTime UpdateDate,
+    int CreationUserId,
+    int UpdateUser,
+    string Comments);
