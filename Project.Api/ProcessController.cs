@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using NB.Omc.Cubo.Contracts;
 using Project.Api.DbContexts;
 using Project.Api.Models;
@@ -68,25 +67,7 @@ public sealed class ProcessController(DbContextProject db) : ControllerBase
     public async Task<ActionResult<ApiResponse<Process[]>>> GetHistory(
         int id, CancellationToken cancellationToken)
     {
-        var history = await db.Set<Dictionary<string, object>>("Process_History")
-            .Where(entry => EF.Property<int>(entry, "Id") == id)
-            .OrderBy(entry => EF.Property<long>(entry, "HistoryId"))
-            .Select(entry => new Process
-            {
-                Id = EF.Property<int>(entry, nameof(Process.Id)),
-                ProcessTypeId = EF.Property<int>(entry, nameof(Process.ProcessTypeId)),
-                ProcessStatusId = EF.Property<int>(entry, nameof(Process.ProcessStatusId)),
-                ClientNIF = EF.Property<string>(entry, nameof(Process.ClientNIF)),
-                ClientName = EF.Property<string>(entry, nameof(Process.ClientName)),
-                ClientSector = EF.Property<string>(entry, nameof(Process.ClientSector)),
-                ClientCountryCode = EF.Property<string>(entry, nameof(Process.ClientCountryCode)),
-                CreationDate = EF.Property<DateTime>(entry, nameof(Process.CreationDate)),
-                UpdateDate = EF.Property<DateTime>(entry, nameof(Process.UpdateDate)),
-                CreationUserId = EF.Property<int>(entry, nameof(Process.CreationUserId)),
-                UpdateUser = EF.Property<int>(entry, nameof(Process.UpdateUser)),
-                Comments = EF.Property<string>(entry, nameof(Process.Comments))
-            })
-            .ToArrayAsync(cancellationToken);
+        var history = await db.GetHistoryAsync<Process, int>(id, cancellationToken);
 
         return Ok(ApiResponseFactory.Success(history));
     }

@@ -1,3 +1,5 @@
+using System.Linq.Expressions;
+using System.Reflection;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -10,6 +12,51 @@ public class DbContextProject(DbContextOptions<DbContextProject> options) : DbCo
     internal static string HistoryTableNameBuilder(string entityName) => entityName + "_History";
     public DbSet<Process> Processes => Set<Process>();
     public DbSet<ValidationRequest> ValidationRequests => Set<ValidationRequest>();
+
+    public Task<TEntity[]> GetHistoryAsync<TEntity, TKey>(TKey id, CancellationToken cancellationToken = default)
+        where TEntity : class, IAuditing, new()
+    {
+        var source = Model.FindEntityType(typeof(TEntity))
+            ?? throw new InvalidOperationException($"{typeof(TEntity).Name} is not mapped.");
+        var table = StoreObjectIdentifier.Table(source.GetTableName()!, source.GetSchema());
+        var key = source.FindPrimaryKey()!.Properties.Single();
+        if (key.ClrType != typeof(TKey))
+            throw new ArgumentException($"The history key for {source.ClrType.Name} must be {key.ClrType.Name}.", nameof(id));
+
+        var keyColumn = key.GetColumnName(table)!;
+        return Set<Dictionary<string, object>>(HistoryTableNameBuilder(source.ClrType.Name))
+            .AsNoTracking()
+            .Where(row => object.Equals(EF.Property<TKey>(row, keyColumn), id))
+            .OrderBy(row => EF.Property<long>(row, "HistoryId"))
+            .Select(CreateHistoryProjection<TEntity>(source, table))
+            .ToArrayAsync(cancellationToken);
+    }
+
+    private static Expression<Func<Dictionary<string, object>, TEntity>> CreateHistoryProjection<TEntity>(
+        IEntityType source, StoreObjectIdentifier table) where TEntity : new()
+    {
+        var row = Expression.Parameter(typeof(Dictionary<string, object>), "row");
+        var bindings = new List<MemberBinding>();
+
+        foreach (var property in source.GetProperties())
+        {
+            if (property.GetColumnName(table) is not { } column)
+                continue;
+
+            var member = property.PropertyInfo?.SetMethod is not null
+                ? (MemberInfo)property.PropertyInfo
+                : property.FieldInfo;
+            if (member is null || member is FieldInfo { IsInitOnly: true })
+                continue;
+
+            var value = Expression.Call(typeof(EF), nameof(EF.Property), [property.ClrType],
+                row, Expression.Constant(column));
+            bindings.Add(Expression.Bind(member, value));
+        }
+
+        return Expression.Lambda<Func<Dictionary<string, object>, TEntity>>(
+            Expression.MemberInit(Expression.New(typeof(TEntity)), bindings), row);
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

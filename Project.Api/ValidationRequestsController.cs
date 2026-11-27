@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using NB.Omc.Cubo.Contracts;
 using Project.Api.DbContexts;
 using Project.Api.Models;
@@ -68,19 +67,7 @@ public sealed class ValidationRequestsController(DbContextProject db) : Controll
     public async Task<ActionResult<ApiResponse<ValidationRequest[]>>> GetHistory(
         int id, CancellationToken cancellationToken)
     {
-        var history = await db.Set<Dictionary<string, object>>("ValidationRequest_History")
-            .Where(entry => EF.Property<long>(entry, "Id") == id)
-            .OrderBy(entry => EF.Property<long>(entry, "HistoryId"))
-            .Select(entry => new ValidationRequest
-            {
-                Id = EF.Property<long>(entry, nameof(ValidationRequest.Id)),
-                DocumentId = EF.Property<string>(entry, nameof(ValidationRequest.DocumentId)),
-                CreationDate = EF.Property<DateTime>(entry, nameof(ValidationRequest.CreationDate)),
-                UpdateDate = EF.Property<DateTime>(entry, nameof(ValidationRequest.UpdateDate)),
-                CreationUserId = EF.Property<int>(entry, nameof(ValidationRequest.CreationUserId)),
-                UpdateUser = EF.Property<int>(entry, nameof(ValidationRequest.UpdateUser))
-            })
-            .ToArrayAsync(cancellationToken);
+        var history = await db.GetHistoryAsync<ValidationRequest, long>(id, cancellationToken);
 
         return Ok(ApiResponseFactory.Success(history));
     }
